@@ -34,7 +34,7 @@ def fmt_vol(v):
     if v >= 1e3: return f"{v/1e3:.1f} K"
     return str(int(v))
 
-# ---------- Daily Snapshot Rank Logic ----------
+# ---------- Snapshot Rank Logic ----------
 def is_new_trading_day():
     if not os.path.exists(RANK_FILE):
         return True
@@ -58,23 +58,23 @@ def apply_open_rank(df):
     else:
         ranks = load_ranks()
 
-    gainers = df[df["Change %"]>0].sort_values("Change %",ascending=False)
-    losers  = df[df["Change %"]<0].sort_values("Change %")
+    gainers = df[df["% Chg"]>0].sort_values("% Chg",ascending=False)
+    losers  = df[df["% Chg"]<0].sort_values("% Chg")
 
     for i,row in enumerate(gainers.itertuples(),1):
-        if row.Symbol not in ranks["gainers"]:
-            ranks["gainers"][row.Symbol]=i
+        if row.Stock not in ranks["gainers"]:
+            ranks["gainers"][row.Stock]=i
 
     for i,row in enumerate(losers.itertuples(),1):
-        if row.Symbol not in ranks["losers"]:
-            ranks["losers"][row.Symbol]=i
+        if row.Stock not in ranks["losers"]:
+            ranks["losers"][row.Stock]=i
 
     save_ranks(ranks)
 
     df["Rank"] = df.apply(
-        lambda x: ranks["gainers"].get(x["Symbol"])
-        if x["Change %"]>0
-        else ranks["losers"].get(x["Symbol"]),
+        lambda x: ranks["gainers"].get(x["Stock"])
+        if x["% Chg"]>0
+        else ranks["losers"].get(x["Stock"]),
         axis=1
     )
 
