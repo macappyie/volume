@@ -34,114 +34,112 @@ def fmt_vol(v):
     if v >= 1e3: return f"{v/1e3:.1f} K"
     return str(int(v))
 
-# ================= RANK MEMORY =================
+# ---------- Daily Snapshot Rank Logic ----------
+def is_new_trading_day():
+    if not os.path.exists(RANK_FILE):
+        return True
+    last = datetime.fromtimestamp(os.path.getmtime(RANK_FILE)).date()
+    return last != datetime.now().date()
+
 def load_ranks():
     if os.path.exists(RANK_FILE):
         with open(RANK_FILE) as f:
             return json.load(f)
-    return {"gainers": {}, "losers": {}}
+    return {"gainers":{}, "losers":{}}
 
-def save_ranks(ranks):
-    with open(RANK_FILE, "w") as f:
-        json.dump(ranks, f)
+def save_ranks(r):
+    with open(RANK_FILE,"w") as f:
+        json.dump(r,f)
 
 def apply_open_rank(df):
-    ranks = load_ranks()
 
-    gainers = df[df["Change %"] > 0].sort_values("Change %", ascending=False)
-    losers  = df[df["Change %"] < 0].sort_values("Change %")
+    if is_new_trading_day():
+        ranks = {"gainers":{}, "losers":{}}
+    else:
+        ranks = load_ranks()
 
-    for i,row in enumerate(gainers.itertuples(), start=1):
+    gainers = df[df["Change %"]>0].sort_values("Change %",ascending=False)
+    losers  = df[df["Change %"]<0].sort_values("Change %")
+
+    for i,row in enumerate(gainers.itertuples(),1):
         if row.Symbol not in ranks["gainers"]:
-            ranks["gainers"][row.Symbol] = i
+            ranks["gainers"][row.Symbol]=i
 
-    for i,row in enumerate(losers.itertuples(), start=1):
+    for i,row in enumerate(losers.itertuples(),1):
         if row.Symbol not in ranks["losers"]:
-            ranks["losers"][row.Symbol] = i
+            ranks["losers"][row.Symbol]=i
 
     save_ranks(ranks)
 
     df["Rank"] = df.apply(
         lambda x: ranks["gainers"].get(x["Symbol"])
-        if x["Change %"] > 0
+        if x["Change %"]>0
         else ranks["losers"].get(x["Symbol"]),
         axis=1
     )
+
     return df
 
 # ================= DATA =================
 @st.cache_data(ttl=60)
 def load_data():
     rows=[]
-    today = datetime.now().date()
+    today=datetime.now().date()
 
-    tokens = [symbol_token[s] for s in WATCHLIST if s in symbol_token]
-    quotes = kite.quote(tokens)
+    tokens=[symbol_token[s] for s in WATCHLIST if s in symbol_token]
+    quotes=kite.quote(tokens)
 
     for sym in WATCHLIST:
         try:
-            token = symbol_token[sym]
-            q = quotes[str(token)]
+            token=symbol_token[sym]
+            q=quotes[str(token)]
 
-            ltp = q["last_price"]
-            prev = q["ohlc"]["close"]
-            pct = round(((ltp-prev)/prev)*100,2)
-            total_vol = q.get("volume",0)
+            ltp=q["last_price"]
+            prev=q["ohlc"]["close"]
+            pct=round(((ltp-prev)/prev)*100,2)
+            total_vol=q.get("volume",0)
 
-            candles = kite.historical_data(token, today, today, "5minute")
-            if not candles:
-                continue
-            c915 = candles[0]
-
-            daily = kite.historical_data(
-                token, today-timedelta(days=15), today-timedelta(days=1), "day"
+            daily=kite.historical_data(
+                token,today-timedelta(days=15),
+                today-timedelta(days=1),"day"
             )
-            avg_raw = sum(c["volume"] for c in daily[-7:]) / 7 if len(daily)>=7 else 0
+            avg_raw=sum(c["volume"] for c in daily[-7:])/7 if len(daily)>=7 else 0
 
             rows.append({
-                "Symbol": sym,
-                "Rank": "",
-                "LTP": round(ltp,2),
-                "Change %": pct,
-                "Avg Vol": fmt_vol(avg_raw),
-                "9:15 Vol": fmt_vol(c915["volume"]),
-                "Today Vol X": round(total_vol/avg_raw,2) if avg_raw else 0,
-                "Total Vol": fmt_vol(total_vol)
+                "Stock":sym,
+                "LTP":round(ltp,2),
+                "% Chg":pct,
+                "7D Avg Vol":fmt_vol(avg_raw),
+                "TY Vol":round(total_vol/avg_raw,2) if avg_raw else 0,
+                "Total Vol":fmt_vol(total_vol)
             })
             time.sleep(0.05)
         except:
-            continue
+            pass
 
     return pd.DataFrame(rows)
 
 # ================= MAIN =================
-dfm = load_data()
-dfm = apply_open_rank(dfm)
-dfm = dfm.head(30)
+dfm=load_data()
+dfm=apply_open_rank(dfm)
+dfm=dfm.head(30)
 
-col1,col2 = st.columns(2)
+col1,col2=st.columns(2)
 
 with col1:
     st.subheader("🟢 Top Gainers")
     st.dataframe(
-        dfm[dfm["Change %"]>0].sort_values("Rank"),
+        dfm[dfm["% Chg"]>0].sort_values("Rank"),
         use_container_width=True
     )
 
 with col2:
     st.subheader("🔴 Top Losers")
     st.dataframe(
-        dfm[dfm["Change %"]<0].sort_values("Rank"),
+        dfm[dfm["% Chg"]<0].sort_values("Rank"),
         use_container_width=True
     )
 
-# ================= CONTROLS =================
 st.caption("Auto refresh every 60 seconds")
-
-if st.button("♻️ Reset Opening Rank"):
-    if os.path.exists(RANK_FILE):
-        os.remove(RANK_FILE)
-    st.experimental_rerun()
-
 st.button("🔄 Refresh")
 
