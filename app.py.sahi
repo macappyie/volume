@@ -4,11 +4,9 @@ from kiteconnect import KiteConnect
 from datetime import datetime, timedelta
 import time, json, os
 
-# ================= PAGE =================
 st.set_page_config(page_title="Volume Seven Dashboard", layout="wide")
 st.title("📊 Volume Seven Dashboard")
 
-# ================= CONFIG =================
 API_KEY = "awh2j04pcd83zfvq"
 
 with open("access_token.txt") as f:
@@ -34,45 +32,9 @@ def fmt_vol(v):
     if v >= 1e3: return f"{v/1e3:.1f} K"
     return str(int(v))
 
-# ================= RANK MEMORY =================
-def load_ranks():
-    if os.path.exists(RANK_FILE):
-        with open(RANK_FILE) as f:
-            return json.load(f)
-    return {"gainers": {}, "losers": {}}
-
-def save_ranks(ranks):
-    with open(RANK_FILE, "w") as f:
-        json.dump(ranks, f)
-
-def apply_open_rank(df):
-    ranks = load_ranks()
-
-    gainers = df[df["Change %"] > 0].sort_values("Change %", ascending=False)
-    losers  = df[df["Change %"] < 0].sort_values("Change %")
-
-    for i,row in enumerate(gainers.itertuples(), start=1):
-        if row.Symbol not in ranks["gainers"]:
-            ranks["gainers"][row.Symbol] = i
-
-    for i,row in enumerate(losers.itertuples(), start=1):
-        if row.Symbol not in ranks["losers"]:
-            ranks["losers"][row.Symbol] = i
-
-    save_ranks(ranks)
-
-    df["Rank"] = df.apply(
-        lambda x: ranks["gainers"].get(x["Symbol"])
-        if x["Change %"] > 0
-        else ranks["losers"].get(x["Symbol"]),
-        axis=1
-    )
-    return df
-
-# ================= DATA =================
 @st.cache_data(ttl=60)
 def load_data():
-    rows=[]
+    rows = []
     today = datetime.now().date()
 
     tokens = [symbol_token[s] for s in WATCHLIST if s in symbol_token]
@@ -100,7 +62,6 @@ def load_data():
 
             rows.append({
                 "Symbol": sym,
-                "Rank": "",
                 "LTP": round(ltp,2),
                 "Change %": pct,
                 "Avg Vol": fmt_vol(avg_raw),
@@ -108,40 +69,35 @@ def load_data():
                 "Today Vol X": round(total_vol/avg_raw,2) if avg_raw else 0,
                 "Total Vol": fmt_vol(total_vol)
             })
-            time.sleep(0.05)
+            time.sleep(0.1)
         except:
             continue
 
     return pd.DataFrame(rows)
 
-# ================= MAIN =================
-dfm = load_data()
-dfm = apply_open_rank(dfm)
-dfm = dfm.head(30)
+#dfm = load_data()
+#dfm = load_data()
+dfm = dfm.head(30)   # ✅ only first 30 stocks
 
-col1,col2 = st.columns(2)
+
+col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("🟢 Top Gainers")
     st.dataframe(
-        dfm[dfm["Change %"]>0].sort_values("Rank"),
+        dfm[dfm["Change %"] > 0]
+        .sort_values("Change %", ascending=False),
         use_container_width=True
     )
 
 with col2:
     st.subheader("🔴 Top Losers")
     st.dataframe(
-        dfm[dfm["Change %"]<0].sort_values("Rank"),
+        dfm[dfm["Change %"] < 0]
+        .sort_values("Change %"),
         use_container_width=True
     )
 
-# ================= CONTROLS =================
 st.caption("Auto refresh every 60 seconds")
-
-if st.button("♻️ Reset Opening Rank"):
-    if os.path.exists(RANK_FILE):
-        os.remove(RANK_FILE)
-    st.experimental_rerun()
-
 st.button("🔄 Refresh")
 
