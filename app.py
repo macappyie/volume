@@ -1,10 +1,11 @@
-from flask import Flask, render_template
+import streamlit as st
 import pandas as pd
 from kiteconnect import KiteConnect
 from datetime import datetime, timedelta
 import time, json, os
 
-app = Flask(__name__)
+st.set_page_config(page_title="Volume Seven Dashboard", layout="wide")
+st.title("📊 Volume Seven Dashboard")
 
 API_KEY = "awh2j04pcd83zfvq"
 
@@ -31,10 +32,8 @@ def fmt_vol(v):
     if v >= 1e3: return f"{v/1e3:.1f} K"
     return str(int(v))
 
-# ================= INDEX =================
-@app.route("/")
-def index():
-
+@st.cache_data(ttl=60)
+def load_data():
     rows = []
     today = datetime.now().date()
 
@@ -62,53 +61,40 @@ def index():
             avg_raw = sum(c["volume"] for c in daily[-7:]) / 7 if len(daily)>=7 else 0
 
             rows.append({
-                "symbol": sym,
-                "ltp": round(ltp,2),
-                "change": pct,
-                "avg_vol": fmt_vol(avg_raw),
-                "vol_915": fmt_vol(c915["volume"]),
-                "ty_vol": f"{round(total_vol/avg_raw,2)}x" if avg_raw else "",
-                "ty_vol_num": round(total_vol/avg_raw,2) if avg_raw else 0,
-                "total_vol": fmt_vol(total_vol)
+                "Symbol": sym,
+                "LTP": round(ltp,2),
+                "Change %": pct,
+                "Avg Vol": fmt_vol(avg_raw),
+                "9:15 Vol": fmt_vol(c915["volume"]),
+                "Today Vol X": round(total_vol/avg_raw,2) if avg_raw else 0,
+                "Total Vol": fmt_vol(total_vol)
             })
-
-            time.sleep(0.15)
+            time.sleep(0.1)
         except:
             continue
 
-    dfm = pd.DataFrame(rows)
+    return pd.DataFrame(rows)
 
-    if datetime.now().time() >= datetime.strptime("09:20","%H:%M").time():
-        if not os.path.exists(RANK_FILE):
-            tmp = dfm.sort_values("change",ascending=False)
-            ranks = {r.symbol:i+1 for i,r in enumerate(tmp.itertuples())}
-            with open(RANK_FILE,"w") as f:
-                json.dump(ranks,f)
+dfm = load_data()
 
-    ranks = {}
-    if os.path.exists(RANK_FILE):
-        with open(RANK_FILE) as f:
-            ranks = json.load(f)
+col1, col2 = st.columns(2)
 
-    dfm["rank"] = dfm["symbol"].map(ranks)
-
-    gainers = (
-        dfm[dfm["change"] > 0]
-        .sort_values("change", ascending=False)
+with col1:
+    st.subheader("🟢 Top Gainers")
+    st.dataframe(
+        dfm[dfm["Change %"] > 0]
+        .sort_values("Change %", ascending=False),
+        use_container_width=True
     )
 
-    losers = (
-        dfm[dfm["change"] < 0]
-        .sort_values("change", ascending=True)
+with col2:
+    st.subheader("🔴 Top Losers")
+    st.dataframe(
+        dfm[dfm["Change %"] < 0]
+        .sort_values("Change %"),
+        use_container_width=True
     )
 
-    return render_template(
-        "index.html",
-        gainers=gainers.to_dict("records"),
-        losers=losers.to_dict("records")
-    )
-
-# ❌ Flask server removed for Streamlit Cloud
-if __name__ == "__main__":
-    pass
+st.caption("Auto refresh every 60 seconds")
+st.button("🔄 Refresh")
 
