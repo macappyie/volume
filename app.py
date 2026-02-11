@@ -51,13 +51,11 @@ def index():
             pct = round(((ltp-prev)/prev)*100,2)
             total_vol = q.get("volume",0)
 
-            # 9:15 candle
             candles = kite.historical_data(token, today, today, "5minute")
             if not candles:
                 continue
             c915 = candles[0]
 
-            # 7D Avg Volume
             daily = kite.historical_data(
                 token, today-timedelta(days=15), today-timedelta(days=1), "day"
             )
@@ -80,7 +78,6 @@ def index():
 
     dfm = pd.DataFrame(rows)
 
-    # ========== CREATE RANK ONCE AFTER 09:20 ==========
     if datetime.now().time() >= datetime.strptime("09:20","%H:%M").time():
         if not os.path.exists(RANK_FILE):
             tmp = dfm.sort_values("change",ascending=False)
@@ -88,7 +85,6 @@ def index():
             with open(RANK_FILE,"w") as f:
                 json.dump(ranks,f)
 
-    # ========== LOAD RANK ==========
     ranks = {}
     if os.path.exists(RANK_FILE):
         with open(RANK_FILE) as f:
@@ -96,7 +92,6 @@ def index():
 
     dfm["rank"] = dfm["symbol"].map(ranks)
 
-    # ========== DISPLAY SORT ==========
     gainers = (
         dfm[dfm["change"] > 0]
         .sort_values("change", ascending=False)
@@ -104,7 +99,7 @@ def index():
 
     losers = (
         dfm[dfm["change"] < 0]
-        .sort_values("change", ascending=True)   # MOST NEGATIVE FIRST
+        .sort_values("change", ascending=True)
     )
 
     return render_template(
@@ -113,6 +108,7 @@ def index():
         losers=losers.to_dict("records")
     )
 
-if __name__=="__main__":
-    app.run(host="0.0.0.0",port=3003,debug=True)
+# ❌ Flask server removed for Streamlit Cloud
+if __name__ == "__main__":
+    pass
 

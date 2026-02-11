@@ -74,7 +74,7 @@ def index():
                 "total_vol": fmt_vol(total_vol)
             })
 
-            time.sleep(0.2)
+            time.sleep(0.15)
         except:
             continue
 
@@ -97,14 +97,14 @@ def index():
     dfm["rank"] = dfm["symbol"].map(ranks)
 
     # ========== DISPLAY SORT ==========
-    dfm = dfm.sort_values("change",ascending=False)
-
-    gainers = dfm[dfm["change"]>0].head(20)
+    gainers = (
+        dfm[dfm["change"] > 0]
+        .sort_values("change", ascending=False)
+    )
 
     losers = (
         dfm[dfm["change"] < 0]
         .sort_values("change", ascending=True)   # MOST NEGATIVE FIRST
-        .head(20)
     )
 
     return render_template(
