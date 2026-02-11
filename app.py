@@ -3,6 +3,8 @@ import pandas as pd
 from kiteconnect import KiteConnect
 from datetime import datetime, timedelta
 import time
+import os
+import json
 
 # ================= PAGE =================
 st.set_page_config(page_title="Volume Seven Dashboard", layout="wide")
@@ -15,6 +17,19 @@ with open("access_token.txt") as f:
 
 kite = KiteConnect(api_key=API_KEY)
 kite.set_access_token(ACCESS_TOKEN)
+
+# ================= FILES =================
+RANK_FILE = "ranks.json"
+
+def load_ranks():
+    if os.path.exists(RANK_FILE):
+        with open(RANK_FILE) as f:
+            return json.load(f)
+    return {}
+
+def save_ranks(ranks):
+    with open(RANK_FILE, "w") as f:
+        json.dump(ranks, f)
 
 # ================= LOAD INSTRUMENTS =================
 df = pd.read_csv("instruments.csv", low_memory=False)
@@ -31,14 +46,13 @@ def fmt_vol(v):
     if v >= 1e3: return f"{v/1e3:.1f} K"
     return str(int(v))
 
-# ================= DATA LOAD =================
+# ================= DATA =================
 @st.cache_data(ttl=60)
 def load_data():
     rows = []
     today = datetime.now().date()
 
     tokens = [symbol_token[s] for s in WATCHLIST if s in symbol_token]
-
     if not tokens:
         return pd.DataFrame()
 
@@ -89,7 +103,6 @@ def load_data():
 
     if not dfm.empty:
         dfm["Change %"] = pd.to_numeric(dfm["Change %"], errors="coerce")
-        dfm["Today Vol X"] = pd.to_numeric(dfm["Today Vol X"], errors="coerce")
 
     return dfm
 
@@ -101,26 +114,49 @@ if dfm.empty:
     st.warning("No data loaded from Kite API")
     st.stop()
 
-# ================= DISPLAY =================
+ranks = load_ranks()
+
 col1, col2 = st.columns(2)
 
+# ================= GAINERS =================
 with col1:
     st.subheader("🟢 Top 20 Gainers")
+
     gainers = (
         dfm[dfm["Change %"] > 0]
         .sort_values(by="Change %", ascending=False)
         .head(20)
+        .reset_index(drop=True)
     )
+
+    # Assign rank only first time
+    for sym in gainers["Symbol"]:
+        if sym not in ranks:
+            ranks[sym] = len(ranks) + 1
+
+    save_ranks(ranks)
+
     st.dataframe(gainers, use_container_width=True)
 
+
+# ================= LOSERS =================
 with col2:
     st.subheader("🔴 Top 20 Losers")
+
     losers = (
         dfm[dfm["Change %"] < 0]
         .sort_values(by="Change %", ascending=True)
         .head(20)
+        .reset_index(drop=True)
     )
+
+    for sym in losers["Symbol"]:
+        if sym not in ranks:
+            ranks[sym] = len(ranks) + 1
+
+    save_ranks(ranks)
+
     st.dataframe(losers, use_container_width=True)
 
-st.caption("🔁 Auto refresh every 60 seconds")
 
+st.caption("🔁 Auto refresh every 60 seconds")
