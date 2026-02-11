@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from kiteconnect import KiteConnect
 from datetime import datetime, timedelta
-import time, os
+import time
 
 # ================= PAGE =================
 st.set_page_config(page_title="Volume Seven Dashboard", layout="wide")
@@ -16,7 +16,7 @@ with open("access_token.txt") as f:
 kite = KiteConnect(api_key=API_KEY)
 kite.set_access_token(ACCESS_TOKEN)
 
-# ================= LOAD FILES =================
+# ================= LOAD INSTRUMENTS =================
 df = pd.read_csv("instruments.csv", low_memory=False)
 df = df[(df.exchange == "NSE") & (df.instrument_type == "EQ")]
 symbol_token = dict(zip(df.tradingsymbol, df.instrument_token))
@@ -31,13 +31,16 @@ def fmt_vol(v):
     if v >= 1e3: return f"{v/1e3:.1f} K"
     return str(int(v))
 
-# ================= DATA =================
+# ================= DATA LOAD =================
 @st.cache_data(ttl=60)
 def load_data():
     rows = []
     today = datetime.now().date()
 
     tokens = [symbol_token[s] for s in WATCHLIST if s in symbol_token]
+
+    if not tokens:
+        return pd.DataFrame()
 
     quotes = kite.quote(tokens)
 
@@ -84,37 +87,38 @@ def load_data():
 
     dfm = pd.DataFrame(rows)
 
-    # 👉 ensure numeric sorting
-    dfm["Change %"] = pd.to_numeric(dfm["Change %"], errors="coerce")
-    dfm["Today Vol X"] = pd.to_numeric(dfm["Today Vol X"], errors="coerce")
+    if not dfm.empty:
+        dfm["Change %"] = pd.to_numeric(dfm["Change %"], errors="coerce")
+        dfm["Today Vol X"] = pd.to_numeric(dfm["Today Vol X"], errors="coerce")
 
     return dfm
 
-# ================= LOAD =================
+
+# ================= LOAD DATA =================
 dfm = load_data()
 
 if dfm.empty:
-    st.warning("No data loaded from Kite")
+    st.warning("No data loaded from Kite API")
     st.stop()
-
-dfm = dfm.head(30)
 
 # ================= DISPLAY =================
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("🟢 Top Gainers")
+    st.subheader("🟢 Top 20 Gainers")
     gainers = (
         dfm[dfm["Change %"] > 0]
         .sort_values(by="Change %", ascending=False)
+        .head(20)
     )
     st.dataframe(gainers, use_container_width=True)
 
 with col2:
-    st.subheader("🔴 Top Losers")
+    st.subheader("🔴 Top 20 Losers")
     losers = (
         dfm[dfm["Change %"] < 0]
         .sort_values(by="Change %", ascending=True)
+        .head(20)
     )
     st.dataframe(losers, use_container_width=True)
 
