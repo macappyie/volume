@@ -75,9 +75,7 @@ def load_data():
 
     return pd.DataFrame(rows)
 
-#dfm = load_data()
-#dfm = load_data()
-dfm = dfm.head(30)   # ✅ only first 30 stocks
+dfm = dfm.head(30)
 
 
 col1, col2 = st.columns(2)
