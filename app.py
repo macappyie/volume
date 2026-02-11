@@ -4,11 +4,9 @@ from kiteconnect import KiteConnect
 from datetime import datetime, timedelta
 import time, json, os
 
-# ================= PAGE =================
 st.set_page_config(page_title="Volume Seven Dashboard", layout="wide")
 st.title("📊 Volume Seven Dashboard")
 
-# ================= CONFIG =================
 API_KEY = "awh2j04pcd83zfvq"
 
 with open("access_token.txt") as f:
@@ -34,109 +32,69 @@ def fmt_vol(v):
     if v >= 1e3: return f"{v/1e3:.1f} K"
     return str(int(v))
 
-# ---------- Snapshot Rank Logic ----------
-def is_new_trading_day():
-    if not os.path.exists(RANK_FILE):
-        return True
-    last = datetime.fromtimestamp(os.path.getmtime(RANK_FILE)).date()
-    return last != datetime.now().date()
-
-def load_ranks():
-    if os.path.exists(RANK_FILE):
-        with open(RANK_FILE) as f:
-            return json.load(f)
-    return {"gainers":{}, "losers":{}}
-
-def save_ranks(r):
-    with open(RANK_FILE,"w") as f:
-        json.dump(r,f)
-
-def apply_open_rank(df):
-
-    if is_new_trading_day():
-        ranks = {"gainers":{}, "losers":{}}
-    else:
-        ranks = load_ranks()
-
-    gainers = df[df["% Chg"]>0].sort_values("% Chg",ascending=False)
-    losers  = df[df["% Chg"]<0].sort_values("% Chg")
-
-    for i,row in enumerate(gainers.itertuples(),1):
-        if row.Stock not in ranks["gainers"]:
-            ranks["gainers"][row.Stock]=i
-
-    for i,row in enumerate(losers.itertuples(),1):
-        if row.Stock not in ranks["losers"]:
-            ranks["losers"][row.Stock]=i
-
-    save_ranks(ranks)
-
-    df["Rank"] = df.apply(
-        lambda x: ranks["gainers"].get(x["Stock"])
-        if x["% Chg"]>0
-        else ranks["losers"].get(x["Stock"]),
-        axis=1
-    )
-
-    return df
-
-# ================= DATA =================
 @st.cache_data(ttl=60)
 def load_data():
-    rows=[]
-    today=datetime.now().date()
+    rows = []
+    today = datetime.now().date()
 
-    tokens=[symbol_token[s] for s in WATCHLIST if s in symbol_token]
-    quotes=kite.quote(tokens)
+    tokens = [symbol_token[s] for s in WATCHLIST if s in symbol_token]
+    quotes = kite.quote(tokens)
 
     for sym in WATCHLIST:
         try:
-            token=symbol_token[sym]
-            q=quotes[str(token)]
+            token = symbol_token[sym]
+            q = quotes[str(token)]
 
-            ltp=q["last_price"]
-            prev=q["ohlc"]["close"]
-            pct=round(((ltp-prev)/prev)*100,2)
-            total_vol=q.get("volume",0)
+            ltp = q["last_price"]
+            prev = q["ohlc"]["close"]
+            pct = round(((ltp-prev)/prev)*100,2)
+            total_vol = q.get("volume",0)
 
-            daily=kite.historical_data(
-                token,today-timedelta(days=15),
-                today-timedelta(days=1),"day"
+            candles = kite.historical_data(token, today, today, "5minute")
+            if not candles:
+                continue
+            c915 = candles[0]
+
+            daily = kite.historical_data(
+                token, today-timedelta(days=15), today-timedelta(days=1), "day"
             )
-            avg_raw=sum(c["volume"] for c in daily[-7:])/7 if len(daily)>=7 else 0
+            avg_raw = sum(c["volume"] for c in daily[-7:]) / 7 if len(daily)>=7 else 0
 
             rows.append({
-                "Stock":sym,
-                "LTP":round(ltp,2),
-                "% Chg":pct,
-                "7D Avg Vol":fmt_vol(avg_raw),
-                "TY Vol":round(total_vol/avg_raw,2) if avg_raw else 0,
-                "Total Vol":fmt_vol(total_vol)
+                "Symbol": sym,
+                "LTP": round(ltp,2),
+                "Change %": pct,
+                "Avg Vol": fmt_vol(avg_raw),
+                "9:15 Vol": fmt_vol(c915["volume"]),
+                "Today Vol X": round(total_vol/avg_raw,2) if avg_raw else 0,
+                "Total Vol": fmt_vol(total_vol)
             })
-            time.sleep(0.05)
+            time.sleep(0.1)
         except:
-            pass
+            continue
 
     return pd.DataFrame(rows)
 
-# ================= MAIN =================
-dfm=load_data()
-dfm=apply_open_rank(dfm)
-dfm=dfm.head(30)
+#dfm = load_data()
+#dfm = load_data()
+dfm = dfm.head(30)   # ✅ only first 30 stocks
 
-col1,col2=st.columns(2)
+
+col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("🟢 Top Gainers")
     st.dataframe(
-        dfm[dfm["% Chg"]>0].sort_values("Rank"),
+        dfm[dfm["Change %"] > 0]
+        .sort_values("Change %", ascending=False),
         use_container_width=True
     )
 
 with col2:
     st.subheader("🔴 Top Losers")
     st.dataframe(
-        dfm[dfm["% Chg"]<0].sort_values("Rank"),
+        dfm[dfm["Change %"] < 0]
+        .sort_values("Change %"),
         use_container_width=True
     )
 
