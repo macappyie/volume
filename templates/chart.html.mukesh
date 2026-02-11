@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ symbol }} Chart</title>
+  <script src="https://unpkg.com/lightweight-charts@4.0.1/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    body { margin:0; background:#000; color:#fff; font-family:Arial; }
+    #title { padding:10px; font-size:18px; font-weight:bold; }
+    #chart { height: calc(100vh - 50px); }
+  </style>
+</head>
+<body>
+
+<div id="title">📈 {{ symbol }} — 5 Min Candle (Last 2 Days, IST)</div>
+<div id="chart"></div>
+
+<script>
+const chart = LightweightCharts.createChart(
+  document.getElementById("chart"),
+  {
+    layout:{ background:{color:"#000"}, textColor:"#ccc" },
+    grid:{ vertLines:{color:"#222"}, horzLines:{color:"#222"} },
+    timeScale:{ timeVisible:true, secondsVisible:false }
+  }
+);
+
+const candleSeries = chart.addCandlestickSeries({
+  upColor:"#22c55e",
+  downColor:"#ef4444",
+  borderUpColor:"#22c55e",
+  borderDownColor:"#ef4444",
+  wickUpColor:"#22c55e",
+  wickDownColor:"#ef4444"
+});
+
+const sma20Series = chart.addLineSeries({
+  color: "yellow",
+  lineWidth: 2
+});
+
+const sma50Series = chart.addLineSeries({
+  color: "#00bcd4",
+  lineWidth: 2
+});
+
+fetch(`/api/candles/{{ symbol }}`)
+  .then(r => r.json())
+  .then(d => {
+    candleSeries.setData(d.candles);
+    sma20Series.setData(d.sma20);
+    sma50Series.setData(d.sma50);
+
+    if(d.ten_high){
+      candleSeries.createPriceLine({
+        price: d.ten_high,
+        color:"#22c55e",
+        lineWidth:2,
+        title:"10 AM HIGH"
+      });
+    }
+
+    if(d.ten_low){
+      candleSeries.createPriceLine({
+        price: d.ten_low,
+        color:"#ef4444",
+        lineWidth:2,
+        title:"10 AM LOW"
+      });
+    }
+
+    chart.timeScale().fitContent();
+  });
+</script>
+
+</body>
+</html>
+

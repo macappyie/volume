@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Intraday Rank Scanner</title>
+<meta http-equiv="refresh" content="60">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<h1>📊 Intraday Rank Scanner</h1>
+
+<div class="container">
+
+<!-- LEFT : GAINERS -->
+<div class="box">
+<h2 class="green">🟢 GAINERS</h2>
+<table>
+
+<tr>
+<th>Rank</th>
+<th>Stock</th>
+<th>LTP</th>
+<th>% Chg</th>
+<th>7D Avg Vol</th>
+<th>9:15 Vol</th>
+<th>TY Vol</th>
+<th>Total Vol</th>
+</tr>
+
+{% for r in gainers %}
+<tr>
+<td>{{r.rank}}</td>
+<td>{{r.symbol}}</td>
+<td>{{r.ltp}}</td>
+<td class="green">{{r.change}}</td>
+<td>{{r.avg_vol}}</td>
+<td>{{r.vol_915}}</td>
+<td>{{r.ty_vol}}</td>
+<td>{{r.total_vol}}</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+
+<!-- RIGHT : LOSERS -->
+<div class="box">
+<h2 class="red">🔴 LOSERS</h2>
+<table>
+
+<tr>
+<th>Rank</th>
+<th>Stock</th>
+<th>LTP</th>
+<th>% Chg</th>
+<th>7D Avg Vol</th>
+<th>9:15 Vol</th>
+<th>TY Vol</th>
+<th>Total Vol</th>
+</tr>
+
+{% for r in losers %}
+<tr>
+<td>{{r.rank}}</td>
+<td>{{r.symbol}}</td>
+<td>{{r.ltp}}</td>
+<td class="red">{{r.change}}</td>
+<td>{{r.avg_vol}}</td>
+<td>{{r.vol_915}}</td>
+<td>{{r.ty_vol}}</td>
+<td>{{r.total_vol}}</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+
+</div>
+</body>
+</html>
+

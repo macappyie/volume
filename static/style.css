@@ -1,0 +1,35 @@
+body{
+  background:#0b1220;
+  color:#e5e7eb;
+  font-family:Arial;
+  font-size:12px;
+}
+
+h1{text-align:center;}
+
+.container{
+  display:flex;
+  gap:10px;
+}
+
+.box{
+  width:50%;
+  background:#020617;
+  padding:6px;
+  border-radius:8px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td{
+  padding:4px;
+  text-align:center;
+  border-bottom:1px solid #1e293b;
+}
+
+.green{color:#22c55e;font-weight:bold;}
+.red{color:#ef4444;font-weight:bold;}
+

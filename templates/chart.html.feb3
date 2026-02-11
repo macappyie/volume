@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ symbol }} Chart</title>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <h3>{{ symbol }}</h3>
+  <div id="chart" style="height:500px;"></div>
+
+  <script>
+    const chart = LightweightCharts.createChart(
+      document.getElementById("chart"),
+      { width: window.innerWidth - 40, height: 500 }
+    );
+
+    const candleSeries = chart.addCandlestickSeries();
+    const sma20 = chart.addLineSeries({ color: "yellow" });
+    const sma50 = chart.addLineSeries({ color: "cyan" });
+
+    fetch("/api/candles/{{ symbol }}")
+      .then(r => r.json())
+      .then(d => {
+        candleSeries.setData(d.candles);
+        sma20.setData(d.sma20);
+        sma50.setData(d.sma50);
+      });
+  </script>
+</body>
+</html>
+

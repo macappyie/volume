@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Intraday Scanner</title>
+
+  <!-- AUTO REFRESH EVERY 60 SECONDS -->
+  <meta http-equiv="refresh" content="60">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>📊 Intraday Scanner</h1>
+
+<div class="container">
+
+  <!-- ================= GAINERS ================= -->
+  <div class="box">
+    <h2>🟢 Gainers</h2>
+    <table>
+      <tr>
+        <th>Stock</th>
+        <th>LTP</th>
+        <th>% Chg</th>
+        <th>9:15 Vol</th>
+        <th>% 9:15 HIGH</th>
+        <th>% 10 AM HIGH</th>
+        <th>% 12 PM HIGH</th>
+        <th>Total Vol</th>
+      </tr>
+
+      {% for r in gainers %}
+      <tr>
+        <td>
+          <a href="/chart/{{ r.symbol }}" target="_blank" class="stock-link">
+            {{ r.symbol }}
+          </a>
+        </td>
+
+        <td>{{ r.ltp }}</td>
+        <td class="green">{{ r.change }}%</td>
+        <td>{{ r.vol_915 }}</td>
+
+        <!-- 9:15 HIGH < 1.5 -->
+        <td class="green {% if r.pct_915_high != '' and r.pct_915_high < 1.5 %}flash-green{% endif %}">
+          {{ r.pct_915_high }}%
+        </td>
+
+        <!-- 10 AM HIGH < 1.5 -->
+        <td class="green {% if r.pct_10_high != '' and r.pct_10_high < 1.5 %}flash-green{% endif %}">
+          {{ r.pct_10_high }}%
+        </td>
+
+        <!-- ✅ 12 PM HIGH < 0.8 -->
+        <td class="green {% if r.pct_12_high != '' and r.pct_12_high < 0.8 %}flash-green{% endif %}">
+          {{ r.pct_12_high }}%
+        </td>
+
+        <td>{{ r.total_vol }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <!-- ================= LOSERS ================= -->
+  <div class="box">
+    <h2>🔴 Losers</h2>
+    <table>
+      <tr>
+        <th>Stock</th>
+        <th>LTP</th>
+        <th>% Chg</th>
+        <th>9:15 Vol</th>
+        <th>% 9:15 LOW</th>
+        <th>% 10 AM LOW</th>
+        <th>% 12 PM LOW</th>
+        <th>Total Vol</th>
+      </tr>
+
+      {% for r in losers %}
+      <tr>
+        <td>
+          <a href="/chart/{{ r.symbol }}" target="_blank" class="stock-link">
+            {{ r.symbol }}
+          </a>
+        </td>
+
+        <td>{{ r.ltp }}</td>
+        <td class="red">{{ r.change }}%</td>
+        <td>{{ r.vol_915 }}</td>
+
+        <!-- 9:15 LOW > -1.5 -->
+        <td class="red {% if r.pct_915_low != '' and r.pct_915_low > -1.5 %}flash-red{% endif %}">
+          {{ r.pct_915_low }}%
+        </td>
+
+        <!-- 10 AM LOW > -1.5 -->
+        <td class="red {% if r.pct_10_low != '' and r.pct_10_low > -1.5 %}flash-red{% endif %}">
+          {{ r.pct_10_low }}%
+        </td>
+
+        <!-- ✅ 12 PM LOW > -0.8 -->
+        <td class="red {% if r.pct_12_low != '' and r.pct_12_low > -0.8 %}flash-red{% endif %}">
+          {{ r.pct_12_low }}%
+        </td>
+
+        <td>{{ r.total_vol }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>
+

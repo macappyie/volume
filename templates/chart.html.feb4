@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ symbol }} Chart</title>
+
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: #0b1220;
+      color: #e5e7eb;
+      font-family: Arial;
+    }
+    h3 { padding:8px; margin:0; }
+    #chart { width:100%; height:600px; }
+  </style>
+</head>
+
+<body>
+
+<h3>{{ symbol }} | 5 Min</h3>
+<div id="chart"></div>
+
+<script>
+const container = document.getElementById("chart");
+
+const chart = LightweightCharts.createChart(container, {
+    layout: {
+        background: { color:"#0b1220" },
+        textColor:"#e5e7eb"
+    },
+    grid: {
+        vertLines:{ color:"#1e293b" },
+        horzLines:{ color:"#1e293b" }
+    },
+    width: container.clientWidth,
+    height: 600,
+    timeScale:{ timeVisible:true }
+});
+
+// ===== SERIES =====
+const candleSeries = chart.addSeries(
+    LightweightCharts.CandlestickSeries,
+    { upColor:"#22c55e", downColor:"#ef4444", wickUpColor:"#22c55e", wickDownColor:"#ef4444", borderVisible:false }
+);
+
+const sma20 = chart.addSeries(
+    LightweightCharts.LineSeries,
+    { color:"yellow", lineWidth:2 }
+);
+
+const sma50 = chart.addSeries(
+    LightweightCharts.LineSeries,
+    { color:"blue", lineWidth:2 }
+);
+
+// ===== LOAD DATA =====
+fetch("/api/candles/{{ symbol }}")
+.then(res=>res.json())
+.then(data=>{
+
+    candleSeries.setData(data.candles);
+    sma20.setData(data.sma20);
+    sma50.setData(data.sma50);
+
+    // 10 AM HIGH LINE
+    if(data.line10){
+        const line10 = chart.addSeries(
+            LightweightCharts.LineSeries,
+            { color:"#f8fafc", lineWidth:3 }
+        );
+
+        line10.setData([
+            { time:data.candles[0].time, value:data.line10 },
+            { time:data.candles[data.candles.length-1].time, value:data.line10 }
+        ]);
+    }
+
+    chart.timeScale().fitContent();
+});
+
+window.addEventListener("resize", ()=>{
+    chart.applyOptions({ width:container.clientWidth });
+});
+</script>
+
+</body>
+</html>
+

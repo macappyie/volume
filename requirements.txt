@@ -1,0 +1,6 @@
+flask
+pandas
+kiteconnect
+requests
+matplotlib
+
